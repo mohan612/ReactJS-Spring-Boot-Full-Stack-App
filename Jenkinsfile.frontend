@@ -1,0 +1,278 @@
+pipeline {
+    agent any
+    
+    environment {
+        DOCKER_REGISTRY = credentials('docker-registry')
+        SONARQUBE_TOKEN = credentials('sonarqube-token')
+        NEXUS_IQ_TOKEN = credentials('nexus-iq-token')
+        TRIVY_TOKEN = credentials('trivy-token')
+        NODE_VERSION = '16'
+        DOCKER_IMAGE_NAME = 'hobbie-frontend'
+        DOCKER_TAG = "${env.BUILD_NUMBER}"
+    }
+    
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        timeout(time: 30, unit: 'MINUTES')
+        disableConcurrentBuilds()
+    }
+    
+    stages {
+        stage('PR Validation') {
+            when {
+                changeRequest()
+            }
+            steps {
+                script {
+                    // PR Title Check
+                    if (!env.CHANGE_TITLE =~ /^(feat|fix|docs|style|refactor|test|chore)(\\(.+\\))?: .+/) {
+                        error("PR title must follow conventional commit format: type(scope): description")
+                    }
+                    
+                    // Check for required sections in PR description
+                    if (!env.CHANGE_DESCRIPTION.contains('## Type of Change') || 
+                        !env.CHANGE_DESCRIPTION.contains('## Testing') || 
+                        !env.CHANGE_DESCRIPTION.contains('## Checklist')) {
+                        error("PR description must include Type of Change, Testing, and Checklist sections")
+                    }
+                }
+            }
+        }
+        
+        stage('Secret Scanning') {
+            steps {
+                script {
+                    // TruffleHog secret scanning
+                    sh '''
+                        trufflehog filesystem . \
+                            --exclude_paths=.gitignore \
+                            --json \
+                            --output=trufflehog-results.json || true
+                    '''
+                    
+                    // Parse results and fail if secrets found
+                    script {
+                        def trufflehogResults = readJSON file: 'trufflehog-results.json'
+                        if (trufflehogResults.size() > 0) {
+                            error("Secrets detected in repository! Please review and remove them.")
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Setup Node.js') {
+            steps {
+                nodejs(nodeJSInstallationName: "Node ${NODE_VERSION}") {
+                    sh 'node --version'
+                    sh 'npm --version'
+                }
+            }
+        }
+        
+        stage('Install Dependencies') {
+            steps {
+                dir('react-frontend') {
+                    sh 'npm ci'
+                }
+            }
+        }
+        
+        stage('Code Quality - SonarQube') {
+            steps {
+                dir('react-frontend') {
+                    withSonarQubeEnv('SonarQube') {
+                        sh '''
+                            npm run test:coverage
+                            npm run sonar-scanner || true
+                        '''
+                    }
+                }
+            }
+            post {
+                always {
+                    script {
+                        def qg = waitForQualityGate()
+                        if (qg.status != 'OK') {
+                            error("Pipeline aborted due to quality gate failure: ${qg.status}")
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Build & Test') {
+            steps {
+                dir('react-frontend') {
+                    sh '''
+                        npm run lint
+                        npm run test -- --coverage --watchAll=false
+                        npm run build
+                    '''
+                }
+            }
+            post {
+                always {
+                    publishHTML([
+                        allowMissing: false,
+                        alwaysLinkToLastBuild: true,
+                        keepAll: true,
+                        reportDir: 'react-frontend/coverage',
+                        reportFiles: 'index.html',
+                        reportName: 'Coverage Report'
+                    ])
+                }
+            }
+        }
+        
+        stage('Dependency Scan - Nexus IQ') {
+            steps {
+                dir('react-frontend') {
+                    sh '''
+                        npm audit --audit-level moderate --json > npm-audit.json || true
+                        curl -u ${NEXUS_IQ_USR}:${NEXUS_IQ_PSW} \
+                             -F "file=@package-lock.json" \
+                             -F "applicationId=hobbie-frontend-${BUILD_NUMBER}" \
+                             -F "stage=build" \
+                             https://nexus-iq.example.com/api/v2/scan/applications
+                    '''
+                }
+            }
+        }
+        
+        stage('Docker Build') {
+            steps {
+                script {
+                    def image = docker.build("${DOCKER_IMAGE_NAME}:${DOCKER_TAG}", "./react-frontend")
+                    image.push()
+                    image.push('latest')
+                }
+            }
+        }
+        
+        stage('Image Scan - Trivy') {
+            steps {
+                script {
+                    sh '''
+                        trivy image --format json --output trivy-report.json ${DOCKER_IMAGE_NAME}:${DOCKER_TAG}
+                        trivy image --exit-code 1 --severity HIGH,CRITICAL ${DOCKER_IMAGE_NAME}:${DOCKER_TAG} || echo "Vulnerabilities found - review required"
+                    '''
+                    
+                    // Upload scan results
+                    publishHTML([
+                        allowMissing: false,
+                        alwaysLinkToLastBuild: true,
+                        keepAll: true,
+                        reportDir: '.',
+                        reportFiles: 'trivy-report.html',
+                        reportName: 'Trivy Security Scan'
+                    ])
+                }
+            }
+        }
+        
+        stage('Helm Chart Validation') {
+            steps {
+                script {
+                    // Validate Helm chart syntax and values
+                    sh '''
+                        helm lint helm/hobbie-frontend/
+                        helm template hobbie-frontend helm/hobbie-frontend/ --values helm/hobbie-frontend/values.yaml
+                    '''
+                }
+            }
+        }
+        
+        stage('Helm Deploy to Staging') {
+            when {
+                branch 'develop'
+            }
+            steps {
+                script {
+                    // Deploy to staging using Helm
+                    sh '''
+                        helm upgrade --install hobbie-frontend-staging helm/hobbie-frontend/ \
+                            --namespace staging \
+                            --create-namespace \
+                            --values helm/hobbie-frontend/values.yaml \
+                            --values helm/values-staging.yaml \
+                            --set image.tag=${DOCKER_TAG} \
+                            --wait \
+                            --timeout 10m
+                    '''
+                }
+            }
+        }
+        
+        stage('Helm Deploy to Production') {
+            when {
+                branch 'main'
+            }
+            steps {
+                script {
+                    // Deploy to production using Helm
+                    sh '''
+                        helm upgrade --install hobbie-frontend-prod helm/hobbie-frontend/ \
+                            --namespace production \
+                            --create-namespace \
+                            --values helm/hobbie-frontend/values.yaml \
+                            --values helm/values-production.yaml \
+                            --set image.tag=${DOCKER_TAG} \
+                            --wait \
+                            --timeout 15m
+                    '''
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            // Clean up workspace
+            cleanWs()
+        }
+        
+        success {
+            script {
+                if (env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'develop') {
+                    slackSend(
+                        channel: '#deployments',
+                        color: 'good',
+                        message: "✅ Frontend build successful: ${env.JOB_NAME} - ${env.BUILD_NUMBER}"
+                    )
+                }
+            }
+        }
+        
+        failure {
+            script {
+                slackSend(
+                    channel: '#deployments',
+                    color: 'danger',
+                    message: "❌ Frontend build failed: ${env.JOB_NAME} - ${env.BUILD_NUMBER}\\nCheck console output: ${env.BUILD_URL}"
+                )
+            }
+        }
+        
+        unstable {
+            script {
+                slackSend(
+                    channel: '#deployments',
+                    color: 'warning',
+                    message: "⚠️ Frontend build unstable: ${env.JOB_NAME} - ${env.BUILD_NUMBER}"
+                )
+            }
+        }
+    }
+}
+
+// Helper functions
+def checkPRTitle(String title) {
+    def pattern = /^(feat|fix|docs|style|refactor|test|chore)(\\(.+\\))?: .+/
+    return title.matches(pattern)
+}
+
+def checkPRDescription(String description) {
+    def requiredSections = ['## Type of Change', '## Testing', '## Checklist']
+    return requiredSections.every { description.contains(it) }
+}

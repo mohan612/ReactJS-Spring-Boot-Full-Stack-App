@@ -1,0 +1,21 @@
+apiVersion: v2
+name: hobbie-backend
+description: A Helm chart for Hobbie Spring Boot Backend Microservice
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - spring-boot
+  - backend
+  - microservice
+  - hobbie
+home: https://github.com/your-org/hobbie-app
+sources:
+  - https://github.com/your-org/hobbie-app
+maintainers:
+  - name: DevOps Team
+    email: devops@yourcompany.com
+dependencies: []
+annotations:
+  category: Backend
+  licenses: MIT

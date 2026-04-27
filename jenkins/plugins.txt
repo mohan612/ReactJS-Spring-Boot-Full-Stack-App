@@ -1,0 +1,27 @@
+# Required Jenkins Plugins
+pipeline-stage-view
+pipeline-groovy-lib
+pipeline-multibranch
+pipeline-github
+git
+sonarqube-scanner
+dependency-check
+trivy-scanner
+docker-workflow
+nodejs
+maven-plugin
+slack
+htmlpublisher
+junit
+coverage-api
+credentials-binding
+workflow-aggregator
+github
+blueocean
+kubernetes-cli
+docker-build-step
+docker-commons
+email-ext
+build-timeout
+timestamper
+ansicolor

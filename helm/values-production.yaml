@@ -1,0 +1,71 @@
+# Production environment values for Hobbie microservices
+
+# Frontend values
+hobbie-frontend:
+  replicaCount: 3
+  image:
+    repository: hobbie-frontend
+    tag: "latest"
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 200m
+      memory: 256Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+  env:
+    - name: REACT_APP_API_URL
+      value: "https://api.hobbie.com"
+    - name: NODE_ENV
+      value: "production"
+  ingress:
+    enabled: true
+    hosts:
+      - host: hobbie.com
+        paths:
+          - path: /
+            pathType: Prefix
+
+# Backend values
+hobbie-backend:
+  replicaCount: 3
+  image:
+    repository: hobbie-backend
+    tag: "latest"
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 70
+  database:
+    host: "mysql-production"
+    port: 3306
+    name: "hobbie_db_production"
+    user: "hobbie_user_production"
+  env:
+    - name: SPRING_PROFILES_ACTIVE
+      value: "production"
+    - name: JAVA_OPTS
+      value: "-Xms512m -Xmx1536m"
+  ingress:
+    enabled: true
+    hosts:
+      - host: api.hobbie.com
+        paths:
+          - path: /
+            pathType: Prefix
+  persistence:
+    enabled: true
+    size: 5Gi

@@ -1,0 +1,58 @@
+# Staging environment values for Hobbie microservices
+
+# Frontend values
+hobbie-frontend:
+  replicaCount: 1
+  image:
+    repository: hobbie-frontend
+    tag: "latest"
+  resources:
+    limits:
+      cpu: 250m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+  env:
+    - name: REACT_APP_API_URL
+      value: "http://hobbie-backend-staging:8080"
+    - name: NODE_ENV
+      value: "staging"
+  ingress:
+    enabled: true
+    hosts:
+      - host: hobbie-frontend-staging.yourdomain.com
+        paths:
+          - path: /
+            pathType: Prefix
+
+# Backend values
+hobbie-backend:
+  replicaCount: 1
+  image:
+    repository: hobbie-backend
+    tag: "latest"
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  database:
+    host: "mysql-staging"
+    port: 3306
+    name: "hobbie_db_staging"
+    user: "hobbie_user_staging"
+  env:
+    - name: SPRING_PROFILES_ACTIVE
+      value: "staging"
+    - name: JAVA_OPTS
+      value: "-Xms128m -Xmx256m"
+  ingress:
+    enabled: true
+    hosts:
+      - host: hobbie-backend-staging.yourdomain.com
+        paths:
+          - path: /
+            pathType: Prefix
