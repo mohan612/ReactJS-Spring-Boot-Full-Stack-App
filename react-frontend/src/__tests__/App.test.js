@@ -2,7 +2,6 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import App from '../App';
-import { AuthProvider } from '../context/AuthContext';
 
 // Mock components for testing
 jest.mock('../components/root/home/Home', () => () => <div data-testid="home-page">Home Page</div>);
@@ -19,26 +18,38 @@ const mockAuthContext = {
   token: null,
   login: jest.fn(),
   logout: jest.fn(),
-  isAuthenticated: false
+  isAuthenticated: false,
+  loading: false,
+  error: null,
+  register: jest.fn(),
+  registerBusiness: jest.fn(),
+  clearError: jest.fn()
 };
 
-jest.mock('../context/AuthContext', () => ({
-  AuthProvider: ({ children }) => (
-    <AuthContext.Provider value={mockAuthContext}>
-      {children}
-    </AuthContext.Provider>
-  ),
-  useAuth: () => mockAuthContext
-}));
-
-const AuthContext = React.createContext(mockAuthContext);
+jest.mock('../context/AuthContext', () => {
+  const mockAuthContext = {
+    user: null,
+    token: null,
+    login: jest.fn(),
+    logout: jest.fn(),
+    isAuthenticated: false,
+    loading: false,
+    error: null,
+    register: jest.fn(),
+    registerBusiness: jest.fn(),
+    clearError: jest.fn()
+  };
+  
+  return {
+    AuthProvider: ({ children }) => React.createElement('div', { 'data-testid': 'auth-provider' }, children),
+    useAuth: () => mockAuthContext
+  };
+});
 
 const renderWithProviders = (component) => {
   return render(
     <BrowserRouter>
-      <AuthProvider>
-        {component}
-      </AuthProvider>
+      {component}
     </BrowserRouter>
   );
 };

@@ -7,9 +7,9 @@ import backend.hobbiebackend.model.entities.BusinessOwner;
 import backend.hobbiebackend.model.entities.Hobby;
 import backend.hobbiebackend.model.entities.UserEntity;
 import backend.hobbiebackend.service.impl.UserServiceImpl;
-import backend.hobbiebackend.repository.AppClientRepository;
-import backend.hobbiebackend.repository.BusinessOwnerRepository;
-import backend.hobbiebackend.repository.UserRepository;
+import backend.hobbiebackend.model.repostiory.AppClientRepository;
+import backend.hobbiebackend.model.repostiory.BusinessOwnerRepository;
+import backend.hobbiebackend.model.repostiory.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -111,7 +111,7 @@ class UserServiceTest {
     @Test
     void testRegisterAppClient_EmailAlreadyExists() {
         // Given
-        when(appClientRepository.existsByEmail(anyString())).thenReturn(true);
+        when(appClientRepository.findByUsername(anyString())).thenReturn(Optional.of(mockAppClient));
 
         // When & Then
         assertThrows(RuntimeException.class, () -> userService.register(mockUserDto));
@@ -125,7 +125,7 @@ class UserServiceTest {
         when(businessOwnerRepository.save(any(BusinessOwner.class))).thenReturn(mockBusinessOwner);
 
         // When
-        BusinessOwner result = userService.register(mockBusinessDto);
+        BusinessOwner result = userService.registerBusiness(mockBusinessDto);
 
         // Then
         assertNotNull(result);
@@ -136,10 +136,10 @@ class UserServiceTest {
     @Test
     void testRegisterBusiness_BusinessNameAlreadyExists() {
         // Given
-        when(businessOwnerRepository.existsByBusinessName(anyString())).thenReturn(true);
+        when(businessOwnerRepository.findByBusinessName(anyString())).thenReturn(Optional.of(mockBusinessOwner));
 
         // When & Then
-        assertThrows(RuntimeException.class, () -> userService.register(mockBusinessDto));
+        assertThrows(RuntimeException.class, () -> userService.registerBusiness(mockBusinessDto));
         verify(businessOwnerRepository, never()).save(any(BusinessOwner.class));
     }
 
@@ -253,27 +253,31 @@ class UserServiceTest {
     @Test
     void testUserExists_True() {
         // Given
-        when(userRepository.existsByUsernameOrEmail("testuser", "test@example.com")).thenReturn(true);
+        when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(mockUserEntity));
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(mockUserEntity));
 
         // When
         boolean result = userService.userExists("testuser", "test@example.com");
 
         // Then
         assertTrue(result);
-        verify(userRepository, times(1)).existsByUsernameOrEmail("testuser", "test@example.com");
+        verify(userRepository, times(1)).findByUsername("testuser");
+        verify(userRepository, times(1)).findByEmail("test@example.com");
     }
 
     @Test
     void testUserExists_False() {
         // Given
-        when(userRepository.existsByUsernameOrEmail("nonexistent", "nonexistent@example.com")).thenReturn(false);
+        when(userRepository.findByUsername("nonexistent")).thenReturn(Optional.empty());
+        when(userRepository.findByEmail("nonexistent@example.com")).thenReturn(Optional.empty());
 
         // When
         boolean result = userService.userExists("nonexistent", "nonexistent@example.com");
 
         // Then
         assertFalse(result);
-        verify(userRepository, times(1)).existsByUsernameOrEmail("nonexistent", "nonexistent@example.com");
+        verify(userRepository, times(1)).findByUsername("nonexistent");
+        verify(userRepository, times(1)).findByEmail("nonexistent@example.com");
     }
 
     @Test
@@ -333,27 +337,27 @@ class UserServiceTest {
     @Test
     void testBusinessExists_True() {
         // Given
-        when(businessOwnerRepository.existsByBusinessName("Test Business")).thenReturn(true);
+        when(businessOwnerRepository.findByBusinessName("Test Business")).thenReturn(Optional.of(mockBusinessOwner));
 
         // When
         boolean result = userService.businessExists("Test Business");
 
         // Then
         assertTrue(result);
-        verify(businessOwnerRepository, times(1)).existsByBusinessName("Test Business");
+        verify(businessOwnerRepository, times(1)).findByBusinessName("Test Business");
     }
 
     @Test
     void testBusinessExists_False() {
         // Given
-        when(businessOwnerRepository.existsByBusinessName("Nonexistent Business")).thenReturn(false);
+        when(businessOwnerRepository.findByBusinessName("Nonexistent Business")).thenReturn(Optional.empty());
 
         // When
         boolean result = userService.businessExists("Nonexistent Business");
 
         // Then
         assertFalse(result);
-        verify(businessOwnerRepository, times(1)).existsByBusinessName("Nonexistent Business");
+        verify(businessOwnerRepository, times(1)).findByBusinessName("Nonexistent Business");
     }
 
     @Test

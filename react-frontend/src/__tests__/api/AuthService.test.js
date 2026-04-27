@@ -3,7 +3,15 @@ import axios from 'axios';
 
 // Mock axios
 jest.mock('axios');
-const mockedAxios = axios;
+
+const mockAxiosInstance = {
+  post: jest.fn(),
+  interceptors: {
+    request: { use: jest.fn() }
+  }
+};
+
+axios.create = jest.fn(() => mockAxiosInstance);
 
 describe('AuthService', () => {
   beforeEach(() => {
@@ -20,7 +28,7 @@ describe('AuthService', () => {
         }
       };
       
-      mockedAxios.post.mockResolvedValue(mockResponse);
+      mockAxiosInstance.post.mockResolvedValue(mockResponse);
 
       const credentials = {
         email: 'test@example.com',
@@ -29,21 +37,20 @@ describe('AuthService', () => {
 
       const result = await AuthService.login(credentials);
 
-      expect(mockedAxios.post).toHaveBeenCalledWith('/api/authenticate', credentials);
+      expect(mockAxiosInstance.post).toHaveBeenCalledWith('/api/authenticate', credentials);
       expect(result).toEqual(mockResponse.data);
       expect(localStorage.getItem('token')).toBe('mock-jwt-token');
       expect(localStorage.getItem('user')).toBe(JSON.stringify(mockResponse.data.user));
     });
 
     test('should throw error with invalid credentials', async () => {
-      const mockError = {
-        response: {
-          status: 401,
-          data: { message: 'Invalid credentials' }
-        }
+      const mockError = new Error('Invalid credentials');
+      mockError.response = {
+        status: 401,
+        data: { message: 'Invalid credentials' }
       };
       
-      mockedAxios.post.mockRejectedValue(mockError);
+      mockAxiosInstance.post.mockImplementation(() => Promise.reject(mockError));
 
       const credentials = {
         email: 'test@example.com',
@@ -56,7 +63,8 @@ describe('AuthService', () => {
     });
 
     test('should handle network errors', async () => {
-      mockedAxios.post.mockRejectedValue(new Error('Network Error'));
+      const networkError = new Error('Network Error');
+      mockAxiosInstance.post.mockImplementation(() => Promise.reject(networkError));
 
       const credentials = {
         email: 'test@example.com',
@@ -122,7 +130,7 @@ describe('AuthService', () => {
         }
       };
       
-      mockedAxios.post.mockResolvedValue(mockResponse);
+      mockAxiosInstance.post.mockResolvedValue(mockResponse);
 
       const userData = {
         name: 'Test User',
@@ -132,19 +140,18 @@ describe('AuthService', () => {
 
       const result = await AuthService.register(userData);
 
-      expect(mockedAxios.post).toHaveBeenCalledWith('/api/signup', userData);
+      expect(mockAxiosInstance.post).toHaveBeenCalledWith('/api/signup', userData);
       expect(result).toEqual(mockResponse.data);
     });
 
     test('should handle registration errors', async () => {
-      const mockError = {
-        response: {
-          status: 400,
-          data: { message: 'Email already exists' }
-        }
+      const mockError = new Error('Email already exists');
+      mockError.response = {
+        status: 409,
+        data: { message: 'Email already exists' }
       };
       
-      mockedAxios.post.mockRejectedValue(mockError);
+      mockAxiosInstance.post.mockImplementation(() => Promise.reject(mockError));
 
       const userData = {
         name: 'Test User',

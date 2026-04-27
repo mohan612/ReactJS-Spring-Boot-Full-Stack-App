@@ -7,6 +7,7 @@ import backend.hobbiebackend.model.entities.AppClient;
 import backend.hobbiebackend.model.entities.BusinessOwner;
 import backend.hobbiebackend.service.UserService;
 import backend.hobbiebackend.utility.JwtUtil;
+import backend.hobbiebackend.web.AuthController;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -111,17 +112,17 @@ class AuthControllerTest {
     @Test
     void testRegisterBusiness_Success() throws Exception {
         // Given
-        when(userService.register(any(BusinessRegisterDto.class))).thenReturn(mockBusinessOwner);
+        when(userService.registerBusiness(any(BusinessRegisterDto.class))).thenReturn(mockBusinessOwner);
 
         // When & Then
         mockMvc.perform(post("/api/register-business")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(mockBusinessDto)))
-                .andExpected(status().isCreated())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.username").value("businessuser"))
                 .andExpect(jsonPath("$.businessName").value("Test Business"));
 
-        verify(userService, times(1)).register(any(BusinessRegisterDto.class));
+        verify(userService, times(1)).registerBusiness(any(BusinessRegisterDto.class));
     }
 
     @Test
@@ -136,7 +137,7 @@ class AuthControllerTest {
                 .content(objectMapper.writeValueAsString(invalidDto)))
                 .andExpect(status().isBadRequest());
 
-        verify(userService, never()).register(any(BusinessRegisterDto.class));
+        verify(userService, never()).registerBusiness(any(BusinessRegisterDto.class));
     }
 
     @Test
@@ -210,7 +211,7 @@ class AuthControllerTest {
     @Test
     void testRegisterBusiness_BusinessNameAlreadyExists() throws Exception {
         // Given
-        when(userService.register(any(BusinessRegisterDto.class)))
+        when(userService.registerBusiness(any(BusinessRegisterDto.class)))
                 .thenThrow(new RuntimeException("Business name already exists"));
 
         // When & Then
@@ -219,6 +220,6 @@ class AuthControllerTest {
                 .content(objectMapper.writeValueAsString(mockBusinessDto)))
                 .andExpect(status().isConflict());
 
-        verify(userService, times(1)).register(any(BusinessRegisterDto.class));
+        verify(userService, times(1)).registerBusiness(any(BusinessRegisterDto.class));
     }
 }

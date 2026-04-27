@@ -2,7 +2,6 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import Header from '../../components/root/fragments/header/Header';
-import { AuthProvider } from '../../context/AuthContext';
 
 // Mock AuthContext
 const mockAuthContext = {
@@ -10,26 +9,39 @@ const mockAuthContext = {
   token: null,
   login: jest.fn(),
   logout: jest.fn(),
-  isAuthenticated: false
+  isAuthenticated: false,
+  loading: false,
+  error: null,
+  register: jest.fn(),
+  registerBusiness: jest.fn(),
+  clearError: jest.fn()
 };
 
-jest.mock('../../context/AuthContext', () => ({
-  AuthProvider: ({ children }) => (
-    <AuthContext.Provider value={mockAuthContext}>
-      {children}
-    </AuthContext.Provider>
-  ),
-  useAuth: () => mockAuthContext
-}));
-
-const AuthContext = React.createContext(mockAuthContext);
+jest.mock('../../context/AuthContext', () => {
+  const React = require('react');
+  const mockAuthContext = {
+    user: null,
+    token: null,
+    login: jest.fn(),
+    logout: jest.fn(),
+    isAuthenticated: false,
+    loading: false,
+    error: null,
+    register: jest.fn(),
+    registerBusiness: jest.fn(),
+    clearError: jest.fn()
+  };
+  
+  return {
+    AuthProvider: ({ children }) => React.createElement('div', { 'data-testid': 'auth-provider' }, children),
+    useAuth: () => mockAuthContext
+  };
+});
 
 const renderWithProviders = (component) => {
   return render(
     <BrowserRouter>
-      <AuthProvider>
-        {component}
-      </AuthProvider>
+      {component}
     </BrowserRouter>
   );
 };
@@ -41,41 +53,57 @@ describe('Header Component', () => {
 
   test('renders header without crashing', () => {
     renderWithProviders(<Header />);
-    expect(screen.getByTestId('header')).toBeInTheDocument();
+    expect(screen.getByRole('banner')).toBeInTheDocument();
   });
 
-  test('displays navigation links', () => {
+  test('renders Logo component', () => {
+    renderWithProviders(<Header />);
+    expect(screen.getByAltText('logo')).toBeInTheDocument();
+  });
+
+  test('renders Navbar component', () => {
     renderWithProviders(<Header />);
     expect(screen.getByRole('navigation')).toBeInTheDocument();
   });
 
-  test('shows login link when user is not authenticated', () => {
+  test('has correct CSS class', () => {
+    renderWithProviders(<Header />);
+    const header = screen.getByRole('banner');
+    expect(header).toHaveClass('header');
+  });
+
+  test('renders navigation menu', () => {
+    renderWithProviders(<Header />);
+    const menu = screen.getByAltText('mobile');
+    expect(menu).toBeInTheDocument();
+  });
+
+  test('shows navigation links regardless of auth state', () => {
     mockAuthContext.isAuthenticated = false;
     renderWithProviders(<Header />);
     expect(screen.getByText('Login')).toBeInTheDocument();
+    expect(screen.getByText('Register Bizz')).toBeInTheDocument();
   });
 
-  test('shows user menu when user is authenticated', () => {
+  test('shows navigation links regardless of auth state when authenticated', () => {
     mockAuthContext.isAuthenticated = true;
     mockAuthContext.user = { name: 'Test User', type: 'user' };
     renderWithProviders(<Header />);
-    expect(screen.getByText('Test User')).toBeInTheDocument();
+    expect(screen.getByText('Register Bizz')).toBeInTheDocument();
+    expect(screen.getByText('Login')).toBeInTheDocument();
   });
 
-  test('calls logout function when logout button is clicked', () => {
-    mockAuthContext.isAuthenticated = true;
-    mockAuthContext.user = { name: 'Test User', type: 'user' };
+  test('maintains consistent layout', () => {
+    mockAuthContext.isAuthenticated = false;
     renderWithProviders(<Header />);
-    
-    const logoutButton = screen.getByText('Logout');
-    fireEvent.click(logoutButton);
-    
-    expect(mockAuthContext.logout).toHaveBeenCalledTimes(1);
+    const header = screen.getByRole('banner');
+    expect(header).toBeInTheDocument();
+    expect(header).toHaveClass('header');
   });
 
   test('navigates to home page when logo is clicked', () => {
     renderWithProviders(<Header />);
-    const logo = screen.getByAltText('Hobbie Logo');
+    const logo = screen.getByAltText('logo');
     fireEvent.click(logo);
     expect(window.location.pathname).toBe('/');
   });

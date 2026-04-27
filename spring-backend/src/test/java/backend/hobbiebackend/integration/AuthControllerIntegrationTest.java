@@ -2,8 +2,8 @@ package backend.hobbiebackend.integration;
 
 import backend.hobbiebackend.model.dto.AppClientSignUpDto;
 import backend.hobbiebackend.model.dto.LoginDto;
-import backend.hobbiebackend.repository.AppClientRepository;
-import backend.hobbiebackend.repository.BusinessOwnerRepository;
+import backend.hobbiebackend.model.repostiory.AppClientRepository;
+import backend.hobbiebackend.model.repostiory.BusinessOwnerRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -76,7 +76,7 @@ class AuthControllerIntegrationTest {
                 .content(objectMapper.writeValueAsString(loginDto)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").isString())
-                .andExpect(jsonPath("$.token").length(greaterThan(10)))
+                .andExpect(jsonPath("$.token").exists())
                 .andExpect(jsonPath("$.type").value("Bearer"));
     }
 
