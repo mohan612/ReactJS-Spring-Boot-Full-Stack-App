@@ -18,6 +18,11 @@
 .env.test.local
 .env.production.local
 
+# IDE and configuration directories
+.github/
+.slingshot/
+.vscode/
+
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

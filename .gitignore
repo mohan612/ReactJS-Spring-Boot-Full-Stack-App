@@ -16,8 +16,10 @@ Thumbs.db
 *.sublime-project
 *.sublime-workspace
 
-# Slingshot configuration
+# GitHub workflows and configurations
+.github/
 .slingshot/
+.vscode/
 
 # Logs
 *.log
