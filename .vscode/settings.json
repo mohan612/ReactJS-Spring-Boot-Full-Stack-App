@@ -1,5 +1,0 @@
-{
-    "java.compile.nullAnalysis.mode": "automatic",
-    "Slingshot.readFileLineLimit": 3000,
-    "java.configuration.updateBuildConfiguration": "interactive"
-}
