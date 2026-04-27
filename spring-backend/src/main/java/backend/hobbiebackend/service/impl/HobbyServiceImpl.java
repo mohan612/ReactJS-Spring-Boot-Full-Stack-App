@@ -50,11 +50,18 @@ public class HobbyServiceImpl implements HobbyService {
     @Override
     public void saveUpdatedHobby(Hobby hobby) {
         Optional<Hobby> byId = this.hobbyRepository.findById(hobby.getId());
+
         if (byId.isPresent()) {
+            try {
             deleteResourcesById(byId.get());
+        } catch (Exception e) {
+            e.printStackTrace(); // or proper logging
         }
-        this.hobbyRepository.save(hobby);
     }
+
+    this.hobbyRepository.save(hobby);
+}
+    
 
     @Override
     public boolean deleteHobby(long id) throws Exception {
