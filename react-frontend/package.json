@@ -34,6 +34,12 @@
     "start": "PORT=4200 react-scripts start",
     "build": "cross-env NODE_ENV=production webpack --config build/webpack.config.js",
     "test": "react-scripts test --transformIgnorePatterns 'node_modules/(?!(jest-)?(@ionic/react|@ionic/react-router|@ionic/core|@stencil/core|ionicons|react-confirm-alert)/)'",
+    "test:unit": "react-scripts test --testPathPattern=__tests__ --coverage --watchAll=false --ci --reporters=default --reporters=jest-junit",
+    "test:integration": "react-scripts test --testPathPattern=integration --watchAll=false --ci --reporters=default --reporters=jest-junit",
+    "test:e2e": "cypress run --reporter junit --reporter-options mochaFile=junit-e2e.xml",
+    "test:coverage": "react-scripts test --coverage --watchAll=false --coverageReporters=text --coverageReporters=html --coverageReporters=lcov",
+    "lint": "eslint src/ --ext .js,.jsx,.ts,.tsx",
+    "lint:fix": "eslint src/ --ext .js,.jsx,.ts,.tsx --fix",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
@@ -58,6 +64,11 @@
     "@babel/preset-env": "^7.16.11",
     "@types/jsdom": "^11.12.0",
     "axios-mock-adapter": "^1.20.0",
-    "cross-env": "^7.0.3"
+    "cross-env": "^7.0.3",
+    "cypress": "^9.5.0",
+    "eslint": "^8.10.0",
+    "jest-junit": "^13.0.0",
+    "jest-mock-axios": "^4.5.0",
+    "react-test-renderer": "^17.0.2"
   }
 }

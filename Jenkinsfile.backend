@@ -96,42 +96,118 @@ pipeline {
             }
         }
         
-        stage('Build & Test') {
+        stage('Unit Tests') {
             steps {
                 dir('spring-backend') {
                     sh '''
-                        mvn clean compile
-                        mvn test
-                        mvn jacoco:report
-                        mvn checkstyle:check
-                        mvn spotbugs:check
+                        mvn clean test-compile surefire:test jacoco:report
                     '''
                 }
             }
             post {
                 always {
-                    // Publish test results
+                    // Publish unit test results
                     publishTestResults testResultsPattern: 'spring-backend/target/surefire-reports/*.xml'
                     
-                    // Publish coverage reports
+                    // Publish JaCoCo coverage report
                     publishHTML([
                         allowMissing: false,
                         alwaysLinkToLastBuild: true,
                         keepAll: true,
                         reportDir: 'spring-backend/target/site/jacoco',
                         reportFiles: 'index.html',
-                        reportName: 'JaCoCo Coverage Report'
+                        reportName: 'Unit Test Coverage'
                     ])
                     
-                    // Publish checkstyle results
+                    // Check coverage thresholds
+                    script {
+                        def jacocoReport = readXML file: 'spring-backend/target/site/jacoco/jacoco.xml'
+                        def instructionCoverage = jacocoReport.counter[0].@covered.toDouble() / (jacocoReport.counter[0].@covered.toDouble() + jacocoReport.counter[0].@missed.toDouble()) * 100
+                        def branchCoverage = jacocoReport.counter[3].@covered.toDouble() / (jacocoReport.counter[3].@covered.toDouble() + jacocoReport.counter[3].@missed.toDouble()) * 100
+                        
+                        if (instructionCoverage < 80 || branchCoverage < 80) {
+                            error("Coverage thresholds not met. Instruction: ${instructionCoverage}%, Branch: ${branchCoverage}%")
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Integration Tests') {
+            steps {
+                dir('spring-backend') {
+                    sh '''
+                        mvn failsafe:integration-test jacoco:report-integration
+                    '''
+                }
+            }
+            post {
+                always {
+                    // Publish integration test results
+                    publishTestResults testResultsPattern: 'spring-backend/target/failsafe-reports/*.xml'
+                    
+                    // Publish integration coverage report
                     publishHTML([
                         allowMissing: false,
                         alwaysLinkToLastBuild: true,
                         keepAll: true,
-                        reportDir: 'spring-backend/target/site/checkstyle',
-                        reportFiles: 'checkstyle.html',
-                        reportName: 'Checkstyle Report'
+                        reportDir: 'spring-backend/target/site/jacoco-it',
+                        reportFiles: 'index.html',
+                        reportName: 'Integration Test Coverage'
                     ])
+                }
+            }
+        }
+        
+        stage('Code Quality') {
+            parallel {
+                stage('Checkstyle') {
+                    steps {
+                        dir('spring-backend') {
+                            sh 'mvn checkstyle:check'
+                        }
+                    }
+                    post {
+                        always {
+                            publishHTML([
+                                allowMissing: false,
+                                alwaysLinkToLastBuild: true,
+                                keepAll: true,
+                                reportDir: 'spring-backend/target/site/checkstyle',
+                                reportFiles: 'checkstyle.html',
+                                reportName: 'Checkstyle Report'
+                            ])
+                        }
+                    }
+                }
+                stage('SpotBugs') {
+                    steps {
+                        dir('spring-backend') {
+                            sh 'mvn spotbugs:check'
+                        }
+                    }
+                    post {
+                        always {
+                            publishHTML([
+                                allowMissing: false,
+                                alwaysLinkToLastBuild: true,
+                                keepAll: true,
+                                reportDir: 'spring-backend/target/site/spotbugs',
+                                reportFiles: 'spotbugs.html',
+                                reportName: 'SpotBugs Report'
+                            ])
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Build & Package') {
+            steps {
+                dir('spring-backend') {
+                    sh '''
+                        mvn clean package -DskipTests
+                    '''
                 }
             }
         }

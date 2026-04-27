@@ -101,26 +101,85 @@ pipeline {
             }
         }
         
-        stage('Build & Test') {
+        stage('Unit Tests') {
             steps {
                 dir('react-frontend') {
                     sh '''
-                        npm run lint
-                        npm run test -- --coverage --watchAll=false
-                        npm run build
+                        npm run test:unit -- --coverage --watchAll=false --ci --reporters=default --reporters=jest-junit
                     '''
                 }
             }
             post {
                 always {
+                    // Publish test results
+                    publishTestResults testResultsPattern: 'react-frontend/junit.xml'
+                    
+                    // Publish coverage report
                     publishHTML([
                         allowMissing: false,
                         alwaysLinkToLastBuild: true,
                         keepAll: true,
                         reportDir: 'react-frontend/coverage',
                         reportFiles: 'index.html',
-                        reportName: 'Coverage Report'
+                        reportName: 'Unit Test Coverage'
                     ])
+                    
+                    // Check coverage thresholds
+                    script {
+                        def coverage = readJSON file: 'react-frontend/coverage/coverage-summary.json'
+                        def linesCoverage = coverage.total.lines.pct as Double
+                        def functionsCoverage = coverage.total.functions.pct as Double
+                        def branchesCoverage = coverage.total.branches.pct as Double
+                        def statementsCoverage = coverage.total.statements.pct as Double
+                        
+                        if (linesCoverage < 80 || functionsCoverage < 80 || branchesCoverage < 80 || statementsCoverage < 80) {
+                            error("Coverage thresholds not met. Lines: ${linesCoverage}%, Functions: ${functionsCoverage}%, Branches: ${branchesCoverage}%, Statements: ${statementsCoverage}%")
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Integration Tests') {
+            steps {
+                dir('react-frontend') {
+                    sh '''
+                        npm run test:integration -- --ci --reporters=default --reporters=jest-junit
+                    '''
+                }
+            }
+            post {
+                always {
+                    publishTestResults testResultsPattern: 'react-frontend/junit-integration.xml'
+                }
+            }
+        }
+        
+        stage('E2E Tests') {
+            when {
+                branch 'main'
+            }
+            steps {
+                dir('react-frontend') {
+                    sh '''
+                        npm run test:e2e -- --ci --reporters=default --reporters=jest-junit
+                    '''
+                }
+            }
+            post {
+                always {
+                    publishTestResults testResultsPattern: 'react-frontend/junit-e2e.xml'
+                }
+            }
+        }
+        
+        stage('Build & Lint') {
+            steps {
+                dir('react-frontend') {
+                    sh '''
+                        npm run lint
+                        npm run build
+                    '''
                 }
             }
         }
