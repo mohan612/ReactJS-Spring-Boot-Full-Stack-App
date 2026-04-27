@@ -1,0 +1,33 @@
+{
+  "spring-backend/src/main/resources/application.properties": {
+    "filename": "application.properties",
+    "path": "spring-backend/src/main/resources/application.properties",
+    "version": "1.2",
+    "contextFile": null,
+    "chunks": {
+      "585e2b": {
+        "user": "Mohanraj Rajalingam",
+        "model": "gpt-4.1",
+        "timestamp": 1777301803,
+        "platform": "VisualStudioCode",
+        "product": "AIPP",
+        "productVersion": "2.4.1",
+        "source": "chat",
+        "type": "pasteCode",
+        "extraContext": {},
+        "hash": "418d05a1",
+        "messageId": "system_0e537350-4246-11f1-81f8-35a895f8446d",
+        "codeBlockId": "system_0e537350-4246-11f1-81f8-35a895f8446d-Codeblock-7",
+        "isActive": true
+      }
+    },
+    "lines": {
+      "9": {
+        "chunkId": "585e2b",
+        "hash": "781767fb",
+        "encoded": "spring.jpa.show-sql=true",
+        "prevChunkIds": []
+      }
+    }
+  }
+}
