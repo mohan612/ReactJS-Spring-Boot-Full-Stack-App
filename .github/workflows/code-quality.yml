@@ -1,0 +1,121 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  frontend-quality:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '16'
+        cache: 'npm'
+        cache-dependency-path: react-frontend/package-lock.json
+        
+    - name: Install dependencies
+      working-directory: ./react-frontend
+      run: npm ci
+      
+    - name: Run ESLint
+      working-directory: ./react-frontend
+      run: npx eslint src/ --format=json --output-file=eslint-report.json || true
+      
+    - name: Run Prettier check
+      working-directory: ./react-frontend
+      run: npx prettier --check src/ || true
+      
+    - name: Upload ESLint report
+      uses: actions/upload-artifact@v3
+      with:
+        name: eslint-report
+        path: react-frontend/eslint-report.json
+
+  backend-quality:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        java-version: '11'
+        distribution: 'temurin'
+        
+    - name: Cache Maven dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+        
+    - name: Run Checkstyle
+      working-directory: ./spring-backend
+      run: mvn checkstyle:check || true
+      
+    - name: Run SpotBugs
+      working-directory: ./spring-backend
+      run: mvn spotbugs:check || true
+      
+    - name: SonarCloud Scan
+      uses: SonarSource/sonarcloud-github-action@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  docker-quality:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Hadolint - Dockerfile Lint
+      uses: hadolint/hadolint-action@v3.1.0
+      with:
+        dockerfile: ./react-frontend/Dockerfile
+        ignore: DL3008,DL3013
+        
+    - name: Hadolint - Backend Dockerfile Lint
+      uses: hadolint/hadolint-action@v3.1.0
+      with:
+        dockerfile: ./spring-backend/Dockerfile
+        ignore: DL3008,DL3013
+
+  dependency-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '16'
+        cache: 'npm'
+        cache-dependency-path: react-frontend/package-lock.json
+        
+    - name: Check frontend dependencies
+      working-directory: ./react-frontend
+      run: npm audit --audit-level moderate
+      
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        java-version: '11'
+        distribution: 'temurin'
+        
+    - name: Check backend dependencies
+      working-directory: ./spring-backend
+      run: mvn org.owasp:dependency-check-maven:check
