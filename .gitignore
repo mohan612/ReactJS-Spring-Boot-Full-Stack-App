@@ -16,6 +16,9 @@ Thumbs.db
 *.sublime-project
 *.sublime-workspace
 
+# Slingshot configuration
+.slingshot/
+
 # Logs
 *.log
 logs/
