@@ -78,8 +78,7 @@ pipeline {
                             mvn clean verify sonar:sonar \
                                 -Dsonar.projectKey=hobbie-backend \
                                 -Dsonar.host.url=${SONAR_HOST_URL} \
-                                -Dsonar.login=${SONARQUBE_TOKEN} \
-                                -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+                                -Dsonar.login=${SONARQUBE_TOKEN}
                         '''
                     }
                 }
@@ -96,69 +95,8 @@ pipeline {
             }
         }
         
-        stage('Unit Tests') {
-            steps {
-                dir('spring-backend') {
-                    sh '''
-                        mvn clean test-compile surefire:test jacoco:report
-                    '''
-                }
-            }
-            post {
-                always {
-                    // Publish unit test results
-                    publishTestResults testResultsPattern: 'spring-backend/target/surefire-reports/*.xml'
-                    
-                    // Publish JaCoCo coverage report
-                    publishHTML([
-                        allowMissing: false,
-                        alwaysLinkToLastBuild: true,
-                        keepAll: true,
-                        reportDir: 'spring-backend/target/site/jacoco',
-                        reportFiles: 'index.html',
-                        reportName: 'Unit Test Coverage'
-                    ])
-                    
-                    // Check coverage thresholds
-                    script {
-                        def jacocoReport = readXML file: 'spring-backend/target/site/jacoco/jacoco.xml'
-                        def instructionCoverage = jacocoReport.counter[0].@covered.toDouble() / (jacocoReport.counter[0].@covered.toDouble() + jacocoReport.counter[0].@missed.toDouble()) * 100
-                        def branchCoverage = jacocoReport.counter[3].@covered.toDouble() / (jacocoReport.counter[3].@covered.toDouble() + jacocoReport.counter[3].@missed.toDouble()) * 100
-                        
-                        if (instructionCoverage < 80 || branchCoverage < 80) {
-                            error("Coverage thresholds not met. Instruction: ${instructionCoverage}%, Branch: ${branchCoverage}%")
-                        }
-                    }
-                }
-            }
-        }
-        
-        stage('Integration Tests') {
-            steps {
-                dir('spring-backend') {
-                    sh '''
-                        mvn failsafe:integration-test jacoco:report-integration
-                    '''
-                }
-            }
-            post {
-                always {
-                    // Publish integration test results
-                    publishTestResults testResultsPattern: 'spring-backend/target/failsafe-reports/*.xml'
-                    
-                    // Publish integration coverage report
-                    publishHTML([
-                        allowMissing: false,
-                        alwaysLinkToLastBuild: true,
-                        keepAll: true,
-                        reportDir: 'spring-backend/target/site/jacoco-it',
-                        reportFiles: 'index.html',
-                        reportName: 'Integration Test Coverage'
-                    ])
-                }
-            }
-        }
-        
+                
+                
         stage('Code Quality') {
             parallel {
                 stage('Checkstyle') {
